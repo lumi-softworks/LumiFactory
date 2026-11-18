@@ -1,6 +1,6 @@
 import Foundation
 import KernelCore
-import PluginRootView
+import WorkbenchRootView
 import ProviderRootView
 import ProviderTheme
 import SwiftUI

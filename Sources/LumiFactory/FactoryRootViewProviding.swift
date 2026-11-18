@@ -1,5 +1,5 @@
 import LumiUI
-import PluginRootView
+import WorkbenchRootView
 import ProviderRootView
 import SwiftUI
 

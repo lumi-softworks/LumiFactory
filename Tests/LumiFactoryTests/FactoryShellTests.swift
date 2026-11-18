@@ -1,5 +1,5 @@
 import KernelCore
-import PluginRootView
+import WorkbenchRootView
 import ProviderRootView
 import SwiftUI
 import XCTest
