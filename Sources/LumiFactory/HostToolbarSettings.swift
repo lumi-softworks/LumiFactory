@@ -28,4 +28,33 @@ enum HostToolbarSettings {
             .accessibilityIdentifier("\(prefix).toolbar.settings")
         }
     }
+
+    #if !os(macOS)
+    /// iOS / visionOS 导航栏右侧的宿主设置按钮。
+    ///
+    /// 与 macOS 工具栏齿轮同一语义：点击发出「打开设置」通知，
+    /// 由标准 iOS 设置壳（`IOSSettingsAppShell`）监听并弹出设置 sheet。
+    static func makeIOSItem(prefix: String) -> ProviderToolbar.IOSNavigationBarItem {
+        ProviderToolbar.IOSNavigationBarItem(
+            id: "settings",
+            title: String(localized: "Settings", bundle: .module, comment: "Accessibility label for the navigation bar settings button"),
+            placement: .trailing,
+            category: .global,
+            order: 300
+        ) {
+            Button {
+                NotificationCenter.default.post(
+                    name: SettingViewNavigation.openSettingsNotification,
+                    object: nil
+                )
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .accessibilityLabel(
+                String(localized: "Settings", bundle: .module, comment: "Accessibility label for the navigation bar settings button")
+            )
+            .accessibilityIdentifier("\(prefix).navigation-bar.settings")
+        }
+    }
+    #endif
 }

@@ -83,6 +83,15 @@ public enum KernelAssembler {
         if !manifest.features.skipsSharedRootViewWiring {
             wireRootView(kernel: kernel, manifest: manifest)
         }
+        #else
+        // iOS / visionOS 没有窗口工具栏，设置齿轮挂在系统导航栏贡献点上，
+        // 由标准设置壳（或宿主自有壳）渲染；与 macOS 工具栏齿轮同一开关。
+        if manifest.features.showsSettingsToolbarButton,
+           let navigationBar = kernel.resolveProvider((any IOSNavigationBarProviding).self) {
+            navigationBar.addNavigationBarItems([
+                HostToolbarSettings.makeIOSItem(prefix: manifest.identity.accessibilityPrefix),
+            ])
+        }
         #endif
         manifest.wireKernel?(kernel)
 
