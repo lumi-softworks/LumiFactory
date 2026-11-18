@@ -86,16 +86,24 @@ public final class HostAppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.postApplicationDidFinishLaunching()
     }
 
-    /// 显式打开主窗口，不依赖 SwiftUI 首个 `Window` 场景的自动开窗。
+    /// 主窗口存在性检查 + 缺窗补开，不依赖 SwiftUI 首个场景的自动开窗时序。
     ///
     /// 后台启动（XCTest / 终端直接拉起）时 SwiftUI 的初始开窗是延迟到主队列的
     /// 任务，携带额外启动参数会改变其时序，导致主窗口永不出现（状态栏随之不安装）。
-    /// 这里经 `HostWindowOpener` 主动开窗：opener 由 `HostCommands` 在场景构建期
+    /// 这里经 `HostWindowOpener` 主动补开：opener 由 `HostCommands` 在场景构建期
     /// 捕获（早于本回调），捕获前的请求排队补发，开窗确定性地发生。
     private func openMainWindowOnLaunchIfNeeded() {
         guard let manifest, manifest.features.opensMainWindowOnLaunch else { return }
         let mainWindowID = manifest.identity.mainWindowID
-        HostWindowOpener.shared.openWindow(id: mainWindowID)
+        // SwiftUI 前台启动仍会自动开主窗口（禁用状态恢复并不抑制它）；已存在时
+        // 不再显式开窗——WindowGroup 下重复开窗后再关闭，嵌套场景拓扑会残留
+        // 无 NSWindow 对应的 CGS 窗口表面（幽灵窗）。仅无窗时（后台启动）补开。
+        let alreadyOpen = NSApp?.windows.contains {
+            $0.identifier?.rawValue.contains(mainWindowID) == true && $0.canBecomeMain
+        } ?? false
+        if !alreadyOpen {
+            HostWindowOpener.shared.openWindow(id: mainWindowID)
+        }
         // 显式开窗不会自动前台化 App；XCTest 启动要求 app 处于 active 状态。
         NSApp?.activate(ignoringOtherApps: true)
         dedupeMainWindowsOnLaunch(id: mainWindowID)
