@@ -18,10 +18,10 @@ public struct HostLoadingView: View {
 
     private let appName: String
     private let accessibilityPrefix: String
+    private let brandOverlay: AnyView?
 
     @ObservedObject private var themeRegistry = LumiUIThemeRegistry.shared
     @LumiTheme private var theme
-    @Environment(\.colorScheme) private var colorScheme
     @LumiMotionPreferenceReader private var motionPreference
 
     private enum Stage: Int, CaseIterable {
@@ -43,9 +43,10 @@ public struct HostLoadingView: View {
     @State private var stageTask: Task<Void, Never>?
     @State private var revealTask: Task<Void, Never>?
 
-    public init(appName: String, accessibilityPrefix: String) {
+    public init(appName: String, accessibilityPrefix: String, brandOverlay: AnyView? = nil) {
         self.appName = appName
         self.accessibilityPrefix = accessibilityPrefix
+        self.brandOverlay = brandOverlay
     }
 
     public var body: some View {
@@ -102,49 +103,7 @@ public struct HostLoadingView: View {
     }
 
     private var brand: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [theme.primary.opacity(colorScheme == .dark ? 0.34 : 0.22), .clear],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 90
-                    )
-                )
-                .frame(width: 190, height: 190)
-                .blur(radius: 6)
-
-            progressRing
-        }
-        .frame(width: 190, height: 190)
-    }
-
-    private var progressRing: some View {
-        TimelineView(.animation) { context in
-            let angle = motionPreference.allowsMotion
-                ? context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4 * 360
-                : 0.0
-
-            Circle()
-                .trim(from: 0.06, to: 0.94)
-                .stroke(
-                    AngularGradient(
-                        colors: [
-                            theme.primary.opacity(0.05),
-                            theme.primary.opacity(0.35),
-                            theme.primary.opacity(0.95),
-                            theme.primarySecondary.opacity(0.9),
-                            theme.primary.opacity(0.05)
-                        ],
-                        center: .center
-                    ),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                .frame(width: 168, height: 168)
-                .rotationEffect(.degrees(angle))
-                .opacity(motionPreference.allowsMotion ? 1 : 0.55)
-        }
+        HostLoadingBrandView(overlay: brandOverlay)
     }
 
     private var labels: some View {
@@ -181,6 +140,68 @@ public struct HostLoadingView: View {
                 guard !Task.isCancelled else { return }
                 stage = next
             }
+        }
+    }
+}
+
+/// 加载页品牌区：柔光 + 旋转进度环 + 可选的宿主品牌标记叠加层。
+///
+/// 无时序状态，可独立渲染（单测用 ImageRenderer 验证叠加层契约）。
+struct HostLoadingBrandView: View {
+    var overlay: AnyView?
+
+    @LumiTheme private var theme
+    @Environment(\.colorScheme) private var colorScheme
+    @LumiMotionPreferenceReader private var motionPreference
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [theme.primary.opacity(colorScheme == .dark ? 0.34 : 0.22), .clear],
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: 90
+                    )
+                )
+                .frame(width: 190, height: 190)
+                .blur(radius: 6)
+
+            progressRing
+
+            if let overlay {
+                overlay
+            }
+        }
+        .frame(width: 190, height: 190)
+    }
+
+    /// 围绕品牌标记旋转的渐变光环。
+    private var progressRing: some View {
+        TimelineView(.animation) { context in
+            let angle = motionPreference.allowsMotion
+                ? context.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 1.4) / 1.4 * 360
+                : 0.0
+
+            Circle()
+                .trim(from: 0.06, to: 0.94)
+                .stroke(
+                    AngularGradient(
+                        colors: [
+                            theme.primary.opacity(0.05),
+                            theme.primary.opacity(0.35),
+                            theme.primary.opacity(0.95),
+                            theme.primarySecondary.opacity(0.9),
+                            theme.primary.opacity(0.05)
+                        ],
+                        center: .center
+                    ),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                )
+                .frame(width: 168, height: 168)
+                .rotationEffect(.degrees(angle))
+                .opacity(motionPreference.allowsMotion ? 1 : 0.55)
         }
     }
 }

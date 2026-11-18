@@ -46,6 +46,11 @@ public struct HostManifest {
     /// iOS 上提供本钩子即表示宿主自带完整壳（含导航与设置入口），
     /// 标准 `IOSSettingsAppShell`（NavigationStack + 设置 sheet）不再包裹。
     public var makeMainView: (@MainActor (KernelCoreContainer) -> AnyView)?
+    /// 加载页品牌标记叠加层：渲染在通用进度环之上（如 Cisum 的胶片卷盘）。
+    ///
+    /// nil 时加载页只有通用进度环。与 `makeMainView` 一样必须是纯读取；
+    /// 视图可自行从环境读 `colorScheme` 适配明暗。
+    public var makeLoadingBrandOverlay: (@MainActor () -> AnyView)?
     public var features: HostFeatures
 
     public init(
@@ -60,6 +65,7 @@ public struct HostManifest {
         registerProviders: (@MainActor (KernelCoreContainer) throws -> Void)? = nil,
         wireKernel: (@MainActor (KernelCoreContainer) -> Void)? = nil,
         makeMainView: (@MainActor (KernelCoreContainer) -> AnyView)? = nil,
+        makeLoadingBrandOverlay: (@MainActor () -> AnyView)? = nil,
         features: HostFeatures = HostFeatures()
     ) {
         self.identity = identity
@@ -73,6 +79,7 @@ public struct HostManifest {
         self.registerProviders = registerProviders
         self.wireKernel = wireKernel
         self.makeMainView = makeMainView
+        self.makeLoadingBrandOverlay = makeLoadingBrandOverlay
         self.features = features
     }
 }

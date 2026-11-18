@@ -35,7 +35,8 @@ public struct HostRootWindowView: View {
             case .idle, .booting:
                 HostLoadingView(
                     appName: manifest.identity.appName,
-                    accessibilityPrefix: manifest.identity.accessibilityPrefix
+                    accessibilityPrefix: manifest.identity.accessibilityPrefix,
+                    brandOverlay: manifest.makeLoadingBrandOverlay?()
                 )
             case .failed(let report):
                 HostBootstrapFailureView(
