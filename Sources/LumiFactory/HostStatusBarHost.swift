@@ -48,7 +48,8 @@ public final class HostStatusBarController: NSObject {
                     configuration.popoverWidth,
                     maximumHeight: configuration.popoverMaximumHeight
                 ),
-                accessibilityIdentifier: "\(identity.accessibilityPrefix).statusbar.button",
+                accessibilityIdentifier: configuration.accessibilityIdentifier
+                    ?? "\(identity.accessibilityPrefix).statusbar.button",
                 accessibilityLabel: identity.appName,
                 activatesApplication: configuration.activatesApplication
             )
@@ -91,11 +92,17 @@ public final class HostStatusBarController: NSObject {
             manifest: HostStatusBarManifestSnapshot(identity: identity, configuration: configuration),
             menuBar: menuBar
         )
+        let themed: AnyView
         if let theme = kernel.resolveProvider((any ProviderTheme.ThemeProviding).self) {
             HostThemeSynchronizer.sync(theme)
-            return AnyView(HostThemeView(theme: theme, content: content))
+            themed = AnyView(HostThemeView(theme: theme, content: content))
+        } else {
+            themed = AnyView(content)
         }
-        return AnyView(content)
+        if let wrapPopup = configuration.wrapPopup {
+            return wrapPopup(themed, kernel)
+        }
+        return themed
     }
 }
 

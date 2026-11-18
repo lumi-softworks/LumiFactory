@@ -55,6 +55,8 @@ public struct HostSettingsWindowView: View {
             minWidth: manifest.identity.settingsWindowMinimumSize?.width,
             minHeight: manifest.identity.settingsWindowMinimumSize?.height
         )
+        // 插件详情的 navigationTitle 会被提升为窗口标题，守卫改回宿主标题。
+        .background(HostWindowTitleGuard(title: String(localized: "Settings", bundle: .module)))
         .environment(\.toastWindowID, manifest.identity.settingsWindowID)
         .task { await bootstrapper.boot() }
     }

@@ -189,4 +189,34 @@ private final class HostToolbarPlacementHostView: NSView {
         }
     }
 }
+
+/// 窗口标题守卫：强制宿主窗口保持既定标题。
+///
+/// 设置窗详情区由插件视图填充，插件的 `.navigationTitle(...)` 会被 SwiftUI
+/// 提升为宿主窗口标题（点一下入口，窗口标题就从「设置」变成插件页标题）。
+/// 守卫在每次内容更新后把标题改回宿主定义的值。
+@MainActor
+public struct HostWindowTitleGuard: NSViewRepresentable {
+    private let title: String
+
+    public init(title: String) {
+        self.title = title
+    }
+
+    public func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        // 视图进入窗口后再设置标题：此时窗口已就绪。
+        DispatchQueue.main.async { [weak view] in apply(to: view?.window) }
+        return view
+    }
+
+    public func updateNSView(_ nsView: NSView, context: Context) {
+        apply(to: nsView.window)
+    }
+
+    private func apply(to window: NSWindow?) {
+        guard let window, window.title != title else { return }
+        window.title = title
+    }
+}
 #endif

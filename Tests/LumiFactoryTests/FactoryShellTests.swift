@@ -71,6 +71,31 @@ final class FactoryShellTests: XCTestCase {
         _ = HostViewAssembly.settings(kernel: kernel, manifest: manifest)
     }
 
+    func testStatusBarConfigurationDefaults() {
+        let configuration = HostStatusBarConfiguration()
+
+        XCTAssertNil(configuration.accessibilityIdentifier)
+        XCTAssertNil(configuration.wrapPopup)
+        XCTAssertNil(configuration.makeIconView)
+        XCTAssertNil(configuration.menuItems)
+    }
+
+    func testStatusBarConfigurationKeepsOverrides() {
+        var wrapped = false
+        let configuration = HostStatusBarConfiguration(
+            accessibilityIdentifier: "legacy.menu-bar",
+            wrapPopup: { content, _ in
+                wrapped = true
+                return content
+            }
+        )
+
+        XCTAssertEqual(configuration.accessibilityIdentifier, "legacy.menu-bar")
+        let wrappedView = configuration.wrapPopup?(AnyView(EmptyView()), KernelCoreContainer())
+        XCTAssertNotNil(wrappedView)
+        XCTAssertTrue(wrapped)
+    }
+
     func testDefaultMenuItemsContract() {
         let identity = HostIdentity(
             appName: "TestApp",

@@ -20,7 +20,7 @@ let package = Package(
         .package(url: "https://github.com/lumi-softworks/LumiProviders.git", from: "1.26.0"),
         .package(url: "https://github.com/lumi-softworks/LumiUI.git", from: "1.13.1"),
         .package(url: "https://github.com/lumi-softworks/LumiThemePack.git", from: "1.0.12"),
-        .package(url: "https://github.com/lumi-softworks/LumiSettings.git", from: "1.1.0"),
+        .package(url: "https://github.com/lumi-softworks/LumiSettings.git", from: "1.1.2"),
         // 1.3.0 起模块改名 WorkbenchRootView（核心 API 不变）；JuiceNote 等
         // Workbench 宿主需要 1.3.x 的 Overlay 宿主与重复注入去重修复。
         .package(url: "https://github.com/lumi-softworks/LumiPluginRootView.git", from: "1.3.2"),

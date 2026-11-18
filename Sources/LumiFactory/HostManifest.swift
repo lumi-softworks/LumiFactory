@@ -247,8 +247,14 @@ public struct HostStatusBarConfiguration {
     public var popoverWidth: CGFloat
     public var popoverMaximumHeight: CGFloat
     public var activatesApplication: Bool
+    /// 状态项的 AX 标识；nil 时使用默认 `<prefix>.statusbar.button`。
+    /// 已发布宿主沿用历史锚点（如 Netto 的 `netto.menu-bar`）时覆盖。
+    public var accessibilityIdentifier: String?
     /// 状态栏图标视图；nil 时从 LogoProviding 取 `.statusBar` 场景视图。
     public var makeIconView: (@MainActor (KernelCoreContainer) -> AnyView)?
+    /// 弹窗内容包装钩子：宿主向插件贡献的弹窗视图注入环境
+    /// （environmentObject / environment 值）。nil 时原样渲染。
+    public var wrapPopup: (@MainActor (AnyView, KernelCoreContainer) -> AnyView)?
     /// 弹窗底部菜单行；nil 时使用默认三行（主窗口 / 设置 / 退出）。
     public var menuItems: [HostStatusMenuItem]?
 
@@ -257,14 +263,18 @@ public struct HostStatusBarConfiguration {
         popoverWidth: CGFloat = 300,
         popoverMaximumHeight: CGFloat = 800,
         activatesApplication: Bool = true,
+        accessibilityIdentifier: String? = nil,
         makeIconView: (@MainActor (KernelCoreContainer) -> AnyView)? = nil,
+        wrapPopup: (@MainActor (AnyView, KernelCoreContainer) -> AnyView)? = nil,
         menuItems: [HostStatusMenuItem]? = nil
     ) {
         self.statusViewHeight = statusViewHeight
         self.popoverWidth = popoverWidth
         self.popoverMaximumHeight = popoverMaximumHeight
         self.activatesApplication = activatesApplication
+        self.accessibilityIdentifier = accessibilityIdentifier
         self.makeIconView = makeIconView
+        self.wrapPopup = wrapPopup
         self.menuItems = menuItems
     }
 
