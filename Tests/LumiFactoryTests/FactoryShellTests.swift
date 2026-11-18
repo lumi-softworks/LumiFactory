@@ -46,6 +46,18 @@ final class FactoryShellTests: XCTestCase {
         let features = HostFeatures()
         XCTAssertTrue(features.appliesWindowContentIdentifiers)
         XCTAssertFalse(features.usesReadyMarkerOverlays)
+        XCTAssertFalse(features.skipsSharedRootViewWiring)
+    }
+
+    func testSkippedSharedRootWiringLeavesRegionsUntouched() async throws {
+        var manifest = makeManifest(dataRoot: dataRoot)
+        manifest.features.skipsSharedRootViewWiring = true
+        let kernel = try await KernelAssembler.makeKernel(manifest: manifest)
+
+        let root = try XCTUnwrap(kernel.resolveProvider((any RootViewProviding).self))
+        XCTAssertNil(root.toolbarView)
+        XCTAssertNil(root.activityBarView)
+        XCTAssertNil(root.contentView)
     }
 
     func testAssemblerBootsInReadyMarkerOverlayMode() async throws {

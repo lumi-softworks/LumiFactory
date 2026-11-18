@@ -203,6 +203,14 @@ public struct HostFeatures {
     /// 标识。容器级标识同样会传播遮蔽后代，故与
     /// `appliesWindowContentIdentifiers = false` 搭配使用。
     public var usesReadyMarkerOverlays: Bool
+    /// 跳过共享的 macOS 根视图区域接线（工具栏 / 入口栏 / 内容区）。
+    ///
+    /// 共享接线面向「通用区域 Provider」模型（ToolbarProviding /
+    /// ContentViewProviding）。Workbench 等自带区域联动的根视图由宿主在
+    /// `wireKernel` 里按 Provider 接线（setActivityBarProvider / rail 绑定 /
+    /// MacToolbarProviding）；共享接线注入的默认内容视图会被去重守卫锁死，
+    /// 挡住插件后续的内容注入并吞掉欢迎占位，故这类宿主必须关闭共享接线。
+    public var skipsSharedRootViewWiring: Bool
 
     public init(
         statusBar: HostStatusBarConfiguration? = nil,
@@ -215,7 +223,8 @@ public struct HostFeatures {
         suppressSettingsWindowOnLaunch: Bool = false,
         settingsWindowOpenArgument: String? = nil,
         appliesWindowContentIdentifiers: Bool = true,
-        usesReadyMarkerOverlays: Bool = false
+        usesReadyMarkerOverlays: Bool = false,
+        skipsSharedRootViewWiring: Bool = false
     ) {
         self.statusBar = statusBar
         self.opensMainWindowOnLaunch = opensMainWindowOnLaunch
@@ -228,6 +237,7 @@ public struct HostFeatures {
         self.settingsWindowOpenArgument = settingsWindowOpenArgument
         self.appliesWindowContentIdentifiers = appliesWindowContentIdentifiers
         self.usesReadyMarkerOverlays = usesReadyMarkerOverlays
+        self.skipsSharedRootViewWiring = skipsSharedRootViewWiring
     }
 }
 

@@ -32,7 +32,7 @@ import ProviderMenuBar
 ///   → App 域 Provider 钩子
 ///   → 插件清单 + 白名单过滤 + 逐插件隔离迁移
 ///   → startAsync
-///   → 设置首入口重置 → 根视图接线 → App 域接线钩子
+///   → 设置首入口重置 → 根视图接线（Workbench 宿主可通过 features 跳过）→ App 域接线钩子
 /// ```
 @MainActor
 public enum KernelAssembler {
@@ -80,7 +80,9 @@ public enum KernelAssembler {
 
         resetSettingsSelectionToFirstEntry(kernel: kernel)
         #if os(macOS)
-        wireRootView(kernel: kernel, manifest: manifest)
+        if !manifest.features.skipsSharedRootViewWiring {
+            wireRootView(kernel: kernel, manifest: manifest)
+        }
         #endif
         manifest.wireKernel?(kernel)
 
