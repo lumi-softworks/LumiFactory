@@ -42,6 +42,23 @@ final class FactoryShellTests: XCTestCase {
         XCTAssertFalse(provider is FactoryRootViewProviding)
     }
 
+    func testAccessibilityFeatureDefaults() {
+        let features = HostFeatures()
+        XCTAssertTrue(features.appliesWindowContentIdentifiers)
+        XCTAssertFalse(features.usesReadyMarkerOverlays)
+    }
+
+    func testAssemblerBootsInReadyMarkerOverlayMode() async throws {
+        var manifest = makeManifest(dataRoot: dataRoot)
+        manifest.features.appliesWindowContentIdentifiers = false
+        manifest.features.usesReadyMarkerOverlays = true
+        let kernel = try await KernelAssembler.makeKernel(manifest: manifest)
+
+        let root = try XCTUnwrap(kernel.resolveProvider((any RootViewProviding).self))
+        XCTAssertNotNil(root.contentView)
+        _ = HostViewAssembly.settings(kernel: kernel, manifest: manifest)
+    }
+
     func testDefaultMenuItemsContract() {
         let identity = HostIdentity(
             appName: "TestApp",

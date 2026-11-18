@@ -192,6 +192,17 @@ public struct HostFeatures {
     /// UI 测试专用启动参数：携带时跳过设置窗压制并主动打开设置窗口
     /// （无窗口的菜单栏应用会让 XCTest 的 AX 枚举无限递归）。
     public var settingsWindowOpenArgument: String?
+    /// 是否给窗口内容加 AX 标识（`<prefix>.main.window` / `<prefix>.settings.window`）。
+    ///
+    /// SwiftUI 会把内容级 id 传播给后代，遮蔽后代自己的稳定标识；
+    /// UI 测试依赖大量后代标识的宿主（如 GitOK）应设为 false，
+    /// 并配合 `usesReadyMarkerOverlays` 提供窗口就绪锚点。
+    public var appliesWindowContentIdentifiers: Bool
+    /// 用 1×1 透明 overlay 作为窗口就绪标记（`<prefix>.main.ready` /
+    /// `<prefix>.settings.ready`），替代容器级 `kernel.ready` / `settings.ready`
+    /// 标识。容器级标识同样会传播遮蔽后代，故与
+    /// `appliesWindowContentIdentifiers = false` 搭配使用。
+    public var usesReadyMarkerOverlays: Bool
 
     public init(
         statusBar: HostStatusBarConfiguration? = nil,
@@ -202,7 +213,9 @@ public struct HostFeatures {
         checkForUpdates: (@MainActor @Sendable () -> Void)? = nil,
         quitsWhenLastWindowClosed: Bool = false,
         suppressSettingsWindowOnLaunch: Bool = false,
-        settingsWindowOpenArgument: String? = nil
+        settingsWindowOpenArgument: String? = nil,
+        appliesWindowContentIdentifiers: Bool = true,
+        usesReadyMarkerOverlays: Bool = false
     ) {
         self.statusBar = statusBar
         self.opensMainWindowOnLaunch = opensMainWindowOnLaunch
@@ -213,6 +226,8 @@ public struct HostFeatures {
         self.quitsWhenLastWindowClosed = quitsWhenLastWindowClosed
         self.suppressSettingsWindowOnLaunch = suppressSettingsWindowOnLaunch
         self.settingsWindowOpenArgument = settingsWindowOpenArgument
+        self.appliesWindowContentIdentifiers = appliesWindowContentIdentifiers
+        self.usesReadyMarkerOverlays = usesReadyMarkerOverlays
     }
 }
 

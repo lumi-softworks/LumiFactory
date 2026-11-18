@@ -210,11 +210,15 @@ public enum KernelAssembler {
         }
 
         if let content = kernel.resolveProvider((any ContentViewProviding).self) {
+            let contentView = content.makeContentView()
             rootView.setContentView(
-                AnyView(
-                    content.makeContentView()
-                        .accessibilityIdentifier("\(manifest.identity.accessibilityPrefix).main.window")
-                )
+                manifest.features.appliesWindowContentIdentifiers
+                    ? AnyView(
+                        contentView.accessibilityIdentifier(
+                            "\(manifest.identity.accessibilityPrefix).main.window"
+                        )
+                    )
+                    : AnyView(contentView)
             )
         }
     }

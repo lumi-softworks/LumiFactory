@@ -33,12 +33,22 @@ public struct HostSettingsWindowView: View {
                     onRetry: { await bootstrapper.retry() }
                 )
             case .ready(let kernel):
-                HostThemedContent(kernel: kernel) {
+                let content = HostThemedContent(kernel: kernel) {
                     HostViewAssembly.settings(kernel: kernel, manifest: manifest)
                 }
                 .environment(\.toastProviding, kernel.resolveProvider((any ToastProviding).self))
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("\(manifest.identity.accessibilityPrefix).settings.ready")
+                if manifest.features.usesReadyMarkerOverlays {
+                    content.overlay(alignment: .topLeading) {
+                        HostReadyMarker(
+                            label: "\(manifest.identity.appName) settings window ready",
+                            identifier: "\(manifest.identity.accessibilityPrefix).settings.ready"
+                        )
+                    }
+                } else {
+                    content
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("\(manifest.identity.accessibilityPrefix).settings.ready")
+                }
             }
         }
         .frame(

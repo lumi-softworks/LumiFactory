@@ -45,9 +45,19 @@ public struct HostRootWindowView: View {
                     onRetry: { await bootstrapper.retry() }
                 )
             case .ready(let kernel):
-                HostMainContentView(kernel: kernel, manifest: manifest)
-                    .accessibilityElement(children: .contain)
-                    .accessibilityIdentifier("\(manifest.identity.accessibilityPrefix).kernel.ready")
+                if manifest.features.usesReadyMarkerOverlays {
+                    HostMainContentView(kernel: kernel, manifest: manifest)
+                        .overlay(alignment: .topLeading) {
+                            HostReadyMarker(
+                                label: "\(manifest.identity.appName) main window ready",
+                                identifier: "\(manifest.identity.accessibilityPrefix).main.ready"
+                            )
+                        }
+                } else {
+                    HostMainContentView(kernel: kernel, manifest: manifest)
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("\(manifest.identity.accessibilityPrefix).kernel.ready")
+                }
             }
         }
         .captureHostWindowOpener()
@@ -213,9 +223,28 @@ enum HostViewAssembly {
             )
         // 稳定的窗口内容标识符：侧边栏条目由 LumiSettings 渲染、不带
         // accessibility identifier，UI 测试只能依赖这个锚点。
+        // 依赖后代标识的宿主可关闭（id 会传播遮蔽后代自己的标识）。
+        guard manifest.features.appliesWindowContentIdentifiers else {
+            return view
+        }
         return AnyView(
             view.accessibilityIdentifier("\(manifest.identity.accessibilityPrefix).settings.window")
         )
+    }
+}
+
+/// 1×1 透明就绪标记：给窗口一个稳定的 AX 锚点，又不把标识加在容器上——
+/// 容器级 id 会被 SwiftUI 传播给后代，遮蔽后代自己的稳定标识。
+struct HostReadyMarker: View {
+    let label: String
+    let identifier: String
+
+    var body: some View {
+        Color.clear
+            .frame(width: 1, height: 1)
+            .accessibilityElement()
+            .accessibilityLabel(label)
+            .accessibilityIdentifier(identifier)
     }
 }
 
