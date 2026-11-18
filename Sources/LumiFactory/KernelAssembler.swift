@@ -106,7 +106,8 @@ public enum KernelAssembler {
         manifest: HostManifest,
         storage: any StorageProviding
     ) throws {
-        let root = manifest.makeRootViewProvider?() ?? DefaultRootViewProviding()
+        let root = manifest.makeRootViewProvider?()
+            ?? FactoryRootViewProviding(layout: manifest.rootViewLayout)
         try kernel.registerHostProvider((any RootViewProviding).self, root)
         try kernel.registerHostProvider((any SettingViewProviding).self, DefaultSettingViewProviding())
         try kernel.registerHostProvider(LogoProviding.self, DefaultLogoProviding())

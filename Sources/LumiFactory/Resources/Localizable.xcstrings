@@ -18,6 +18,24 @@
         }
       }
     },
+    "%@ can only remind you while it is open. Turn on notifications to get reminders in the background." : {
+      "comment" : "Explanation that background reminders require notification permission",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ can only remind you while it is open. Turn on notifications to get reminders in the background."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 只能在打开时提醒你。开启通知才能在后台收到提醒。"
+          }
+        }
+      }
+    },
     "%@ Failed to Start" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -188,6 +206,24 @@
         }
       }
     },
+    "Notifications are off" : {
+      "comment" : "Shown when notification permission is denied",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are off"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知已关闭"
+          }
+        }
+      }
+    },
     "Open Data Directory in Finder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -201,6 +237,24 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "在访达中打开数据目录"
+          }
+        }
+      }
+    },
+    "Open Settings" : {
+      "comment" : "Button opening the system settings app",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开设置"
           }
         }
       }

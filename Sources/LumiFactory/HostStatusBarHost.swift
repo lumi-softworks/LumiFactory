@@ -255,24 +255,7 @@ private struct HostStatusBarHostView: View {
     }
 
     private var defaultMenuItems: [HostStatusMenuItem] {
-        [
-            HostStatusMenuItem(
-                title: manifest.identity.appName,
-                windowID: manifest.identity.mainWindowID,
-                accessibilityIdentifier: "\(manifest.identity.accessibilityPrefix).statusbar.main"
-            ),
-            HostStatusMenuItem(
-                title: String(localized: "Settings...", bundle: .module),
-                windowID: manifest.identity.settingsWindowID,
-                accessibilityIdentifier: "\(manifest.identity.accessibilityPrefix).statusbar.settings"
-            ),
-            HostStatusMenuItem(
-                title: String(localized: "Quit", bundle: .module),
-                accessibilityIdentifier: "\(manifest.identity.accessibilityPrefix).statusbar.quit",
-                isDestructive: true,
-                action: { NSApp.terminate(nil) }
-            ),
-        ]
+        HostStatusBarConfiguration.defaultMenuItems(identity: manifest.identity)
     }
 }
 

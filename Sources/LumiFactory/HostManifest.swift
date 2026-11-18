@@ -1,8 +1,12 @@
 import Foundation
 import KernelCore
+import PluginRootView
 import ProviderRootView
 import ProviderTheme
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 /// 宿主清单：一个 App 与共享装配引擎之间的全部差异。
 ///
@@ -24,9 +28,11 @@ public struct HostManifest {
     public var theme: HostThemeConfiguration
     /// 新插件 id → 旧插件 id，交给内核做启用状态读写兼容（升级不丢开关、回滚仍生效）。
     public var legacyPluginIDAliases: [String: String]
-    /// 根视图 Provider 注入：需要平台布局（工具栏 + 内容区 / Workbench）时由宿主
-    /// 提供（如远程 LumiPluginRootView 的 ConfigurableRootViewProviding）。
-    /// nil 时使用无布局的 `DefaultRootViewProviding`。
+    /// 默认根视图的布局配置（工具栏 / ActivityBar / 空态文案）。
+    /// 仅在 `makeRootViewProvider` 为 nil 时生效。
+    public var rootViewLayout: RootViewLayoutConfiguration
+    /// 根视图 Provider 注入：需要完全自定义布局（如 Workbench 三栏）时由宿主
+    /// 提供。nil 时使用共享的 `FactoryRootViewProviding(layout: rootViewLayout)`。
     public var makeRootViewProvider: (@MainActor () -> any RootViewProviding)?
     public var registerProviders: (@MainActor (KernelCoreContainer) throws -> Void)?
     public var wireKernel: (@MainActor (KernelCoreContainer) -> Void)?
@@ -49,6 +55,7 @@ public struct HostManifest {
         storage: HostStorageConfiguration,
         theme: HostThemeConfiguration = HostThemeConfiguration(),
         legacyPluginIDAliases: [String: String] = [:],
+        rootViewLayout: RootViewLayoutConfiguration = .minimal,
         makeRootViewProvider: (@MainActor () -> any RootViewProviding)? = nil,
         registerProviders: (@MainActor (KernelCoreContainer) throws -> Void)? = nil,
         wireKernel: (@MainActor (KernelCoreContainer) -> Void)? = nil,
@@ -61,6 +68,7 @@ public struct HostManifest {
         self.storage = storage
         self.theme = theme
         self.legacyPluginIDAliases = legacyPluginIDAliases
+        self.rootViewLayout = rootViewLayout
         self.makeRootViewProvider = makeRootViewProvider
         self.registerProviders = registerProviders
         self.wireKernel = wireKernel
@@ -234,6 +242,34 @@ public struct HostStatusBarConfiguration {
         self.makeIconView = makeIconView
         self.menuItems = menuItems
     }
+
+    /// 默认三行菜单：主窗口（标题为 App 名）/ 设置 / 退出。
+    ///
+    /// 文案取本包资源；宿主需要品牌化首行（如「设备信息…」）时，
+    /// 取本数组后替换对应项即可，AX 契约与退出动作保持一致。
+    #if os(macOS)
+    @MainActor
+    public static func defaultMenuItems(identity: HostIdentity) -> [HostStatusMenuItem] {
+        [
+            HostStatusMenuItem(
+                title: identity.appName,
+                windowID: identity.mainWindowID,
+                accessibilityIdentifier: "\(identity.accessibilityPrefix).statusbar.main"
+            ),
+            HostStatusMenuItem(
+                title: String(localized: "Settings...", bundle: .module),
+                windowID: identity.settingsWindowID,
+                accessibilityIdentifier: "\(identity.accessibilityPrefix).statusbar.settings"
+            ),
+            HostStatusMenuItem(
+                title: String(localized: "Quit", bundle: .module),
+                accessibilityIdentifier: "\(identity.accessibilityPrefix).statusbar.quit",
+                isDestructive: true,
+                action: { NSApp.terminate(nil) }
+            ),
+        ]
+    }
+    #endif
 }
 
 /// 状态栏弹窗菜单行：打开窗口或执行动作。

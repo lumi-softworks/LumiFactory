@@ -4,8 +4,9 @@
 // 设计原则：
 // - 功能是数据，应用是解释器：App 只提供 HostManifest（插件清单 + 品牌配置 + 钩子），
 //   装配流水线、窗口壳、启动失败归因全部由本包解释执行。
-// - 只依赖契约与基础设施（KernelCore / Provider* / LumiUI / LumiThemePack / LumiSettings），
-//   不依赖任何具体插件包——插件由宿主经 manifest.makePlugins 注入。
+// - 只依赖契约与基础设施（KernelCore / Provider* / LumiUI / LumiThemePack / LumiSettings，
+//   以及根视图基础设施 PluginRootView 的 ConfigurableRootViewProviding），
+//   不依赖任何业务插件包——插件由宿主经 manifest.makePlugins 注入。
 import PackageDescription
 
 let package = Package(
@@ -20,6 +21,9 @@ let package = Package(
         .package(url: "https://github.com/lumi-softworks/LumiUI.git", from: "1.13.1"),
         .package(url: "https://github.com/lumi-softworks/LumiThemePack.git", from: "1.0.12"),
         .package(url: "https://github.com/lumi-softworks/LumiSettings.git", from: "1.1.0"),
+        // 1.3.0 起模块改名 WorkbenchRootView；这里与兄弟 App 一致锁 1.2.x，
+        // 使用 PluginRootView 模块的 ConfigurableRootViewProviding。
+        .package(url: "https://github.com/lumi-softworks/LumiPluginRootView.git", "1.2.0"..<"1.3.0"),
     ],
     targets: [
         .target(
@@ -44,6 +48,7 @@ let package = Package(
                 .product(name: "ProviderTheme", package: "LumiProviders"),
                 .product(name: "ProviderToast", package: "LumiProviders"),
                 .product(name: "ProviderToolbar", package: "LumiProviders"),
+                .product(name: "PluginRootView", package: "LumiPluginRootView"),
             ],
             resources: [
                 .process("Resources")
