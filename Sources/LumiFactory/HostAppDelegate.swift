@@ -94,9 +94,32 @@ public final class HostAppDelegate: NSObject, NSApplicationDelegate {
     /// 捕获（早于本回调），捕获前的请求排队补发，开窗确定性地发生。
     private func openMainWindowOnLaunchIfNeeded() {
         guard let manifest, manifest.features.opensMainWindowOnLaunch else { return }
-        HostWindowOpener.shared.openWindow(id: manifest.identity.mainWindowID)
+        let mainWindowID = manifest.identity.mainWindowID
+        HostWindowOpener.shared.openWindow(id: mainWindowID)
         // 显式开窗不会自动前台化 App；XCTest 启动要求 app 处于 active 状态。
         NSApp?.activate(ignoringOtherApps: true)
+        dedupeMainWindowsOnLaunch(id: mainWindowID)
+    }
+
+    /// `WindowGroup` 主场景前台启动时 SwiftUI 仍会自动开一个窗（禁用状态恢复
+    /// 并不抑制它），与上面的显式开窗叠加出两个主窗口。启动后 2 秒短窗内
+    /// 保留首个、关闭其余重复主窗口；短窗结束后不再干预用户主动开多窗口。
+    /// 单例 `Window` 场景天然只有一个实例，本逻辑对其无副作用。
+    private func dedupeMainWindowsOnLaunch(id: String) {
+        Task { @MainActor [weak self] in
+            for _ in 0 ..< 40 {
+                guard self != nil else { return }
+                let matches = NSApp.windows.filter {
+                    $0.identifier?.rawValue.contains(id) == true && $0.canBecomeMain
+                }
+                if matches.count > 1 {
+                    for window in matches.dropFirst() {
+                        window.close()
+                    }
+                }
+                try? await Task.sleep(nanoseconds: 50_000_000)
+            }
+        }
     }
 
     public func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
