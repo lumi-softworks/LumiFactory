@@ -1,0 +1,67 @@
+// swift-tools-version: 6.0
+// LumiFactory: 兄弟 App 共享的宿主装配引擎与窗口壳（Composition Root as a Package）。
+//
+// 设计原则：
+// - 功能是数据，应用是解释器：App 只提供 HostManifest（插件清单 + 品牌配置 + 钩子），
+//   装配流水线、窗口壳、启动失败归因全部由本包解释执行。
+// - 只依赖契约与基础设施（KernelCore / Provider* / LumiUI / LumiThemePack / LumiSettings），
+//   不依赖任何具体插件包——插件由宿主经 manifest.makePlugins 注入。
+import PackageDescription
+
+let package = Package(
+    name: "LumiFactory",
+    platforms: [.macOS(.v14), .iOS(.v17)],
+    products: [
+        .library(name: "LumiFactory", targets: ["LumiFactory"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/lumi-softworks/LumiKernel.git", from: "1.1.0"),
+        .package(url: "https://github.com/lumi-softworks/LumiProviders.git", from: "1.26.0"),
+        .package(url: "https://github.com/lumi-softworks/LumiUI.git", from: "1.13.1"),
+        .package(url: "https://github.com/lumi-softworks/LumiThemePack.git", from: "1.0.12"),
+        .package(url: "https://github.com/lumi-softworks/LumiSettings.git", from: "1.1.0"),
+    ],
+    targets: [
+        .target(
+            name: "LumiFactory",
+            dependencies: [
+                .product(name: "KernelCore", package: "LumiKernel"),
+                .product(name: "LumiUI", package: "LumiUI"),
+                .product(name: "LumiThemePack", package: "LumiThemePack"),
+                .product(name: "ProviderSettingView", package: "LumiSettings"),
+                .product(name: "ProviderActivityBar", package: "LumiProviders"),
+                .product(name: "ProviderCommand", package: "LumiProviders"),
+                .product(name: "ProviderContentView", package: "LumiProviders"),
+                .product(name: "ProviderDiskCache", package: "LumiProviders"),
+                .product(name: "ProviderDocsView", package: "LumiProviders"),
+                .product(name: "ProviderLogo", package: "LumiProviders"),
+                .product(name: "ProviderMenuBar", package: "LumiProviders"),
+                .product(name: "MenuBarHostKit", package: "LumiProviders"),
+                .product(name: "ProviderPluginControl", package: "LumiProviders"),
+                .product(name: "ProviderPluginManaging", package: "LumiProviders"),
+                .product(name: "ProviderRootView", package: "LumiProviders"),
+                .product(name: "ProviderStorage", package: "LumiProviders"),
+                .product(name: "ProviderTheme", package: "LumiProviders"),
+                .product(name: "ProviderToast", package: "LumiProviders"),
+                .product(name: "ProviderToolbar", package: "LumiProviders"),
+            ],
+            resources: [
+                .process("Resources")
+            ]
+        ),
+        .testTarget(
+            name: "LumiFactoryTests",
+            dependencies: [
+                "LumiFactory",
+                .product(name: "KernelCore", package: "LumiKernel"),
+                .product(name: "ProviderStorage", package: "LumiProviders"),
+                .product(name: "ProviderRootView", package: "LumiProviders"),
+                .product(name: "ProviderTheme", package: "LumiProviders"),
+                .product(name: "ProviderToast", package: "LumiProviders"),
+                .product(name: "ProviderPluginManaging", package: "LumiProviders"),
+                .product(name: "ProviderLogo", package: "LumiProviders"),
+                .product(name: "ProviderSettingView", package: "LumiSettings"),
+            ]
+        ),
+    ]
+)
