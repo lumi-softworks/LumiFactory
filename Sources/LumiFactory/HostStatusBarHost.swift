@@ -90,7 +90,8 @@ public final class HostStatusBarController: NSObject {
         let menuBar = kernel.resolveProvider(MenuBarProviding.self)
         let content = HostStatusBarHostView(
             manifest: HostStatusBarManifestSnapshot(identity: identity, configuration: configuration),
-            menuBar: menuBar
+            menuBar: menuBar,
+            menuBarHost: menuBarHost
         )
         let themed: AnyView
         if let theme = kernel.resolveProvider((any ProviderTheme.ThemeProviding).self) {
@@ -202,24 +203,73 @@ public struct HostLogoView: View {
 }
 
 /// 状态栏弹窗：应用信息 + 插件贡献项 + 菜单行。
+///
+/// 插件数量多时贡献区会很长，整体高度不能无限增长：头部与底部菜单保持自然
+/// 高度，只有贡献区在剩余空间内滚动。宿主弹窗尺寸由 `MenuBarHost.setContentHeight`
+/// 显式控制，这里必须把插件区约束在可用高度内，否则自然高度会把底部菜单
+/// 挤出可视区域。
 private struct HostStatusBarHostView: View {
     let manifest: HostStatusBarManifestSnapshot
     let menuBar: (any MenuBarProviding)?
+    let menuBarHost: MenuBarHost
     @LumiUI.LumiTheme private var theme: any LumiUI.LumiUITheme
+    @State private var headerHeight: CGFloat = 0
+    @State private var menuHeight: CGFloat = 0
+    @State private var pluginContentHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
             appInfoSection
+                .background(HeightReporter { headerHeight = $0 })
 
             if let menuBar {
-                HostStatusBarPopupSection(menuBar: menuBar)
+                HostStatusBarPopupSection(menuBar: menuBar) { pluginContentHeight = $0 }
+                    .frame(height: pluginDisplayHeight)
             }
 
             menuItemsSection
+                .background(HeightReporter { menuHeight = $0 })
         }
         .frame(width: manifest.configuration.popoverWidth)
-        .fixedSize(horizontal: false, vertical: true)
         .background(theme.surface)
+        .onChange(of: preferredHeight, initial: true) { _, height in
+            guard height > 0 else { return }
+            menuBarHost.setContentHeight(height)
+        }
+    }
+
+    /// 弹窗总高度上限：配置值与当前屏幕可用高度的较小者。
+    ///
+    /// `visibleFrame` 已排除菜单栏和 Dock；再留 32pt 给弹窗箭头与边距，
+    /// 避免在小屏幕上仍然顶出屏幕。
+    private var maximumHeight: CGFloat {
+        let mouse = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { $0.frame.contains(mouse) } ?? NSScreen.main
+        let visibleHeight = (screen?.visibleFrame.height ?? 900) - 32
+        return min(manifest.configuration.popoverMaximumHeight, visibleHeight)
+    }
+
+    /// 插件贡献区可用高度：总上限扣掉固定的头部与底部菜单。
+    private var pluginBudget: CGFloat {
+        max(160, maximumHeight - headerHeight - menuHeight)
+    }
+
+    /// 插件贡献区显示高度：内容短时按内容高度，内容长时固定为可用高度并内部滚动。
+    ///
+    /// 内容高度首次由内部真实布局回报；回报前保持 0，避免先撑高再收缩。
+    private var pluginDisplayHeight: CGFloat {
+        guard pluginContentHeight > 0 else { return 0 }
+        return min(pluginContentHeight, pluginBudget)
+    }
+
+    private var pluginIsEmpty: Bool {
+        menuBar?.popupItems.isEmpty ?? true
+    }
+
+    /// 弹窗应有的自然高度（不超过上限），交给宿主设置弹窗尺寸。
+    private var preferredHeight: CGFloat {
+        guard headerHeight > 0, menuHeight > 0 else { return 0 }
+        return headerHeight + (pluginIsEmpty ? 0 : pluginDisplayHeight) + menuHeight
     }
 
     private var appInfoSection: some View {
@@ -268,28 +318,68 @@ private struct HostStatusBarHostView: View {
 
 private struct HostStatusBarPopupSection: View {
     private let menuBar: any MenuBarProviding
+    private let onContentHeight: (CGFloat) -> Void
     @StateObject private var refreshModel: MenuBarRefreshModel
 
-    init(menuBar: any MenuBarProviding) {
+    init(menuBar: any MenuBarProviding, onContentHeight: @escaping (CGFloat) -> Void) {
         self.menuBar = menuBar
+        self.onContentHeight = onContentHeight
         _refreshModel = StateObject(wrappedValue: MenuBarRefreshModel(provider: menuBar))
     }
 
     var body: some View {
         let items = menuBar.popupItems
         if !items.isEmpty {
-            Divider()
             VStack(spacing: 0) {
-                ForEach(items) { item in
-                    item.makeView()
-                        .frame(maxWidth: .infinity)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if item.id != items.last?.id {
-                        Divider()
+                Divider()
+                ScrollView(.vertical) {
+                    VStack(spacing: 0) {
+                        ForEach(items) { item in
+                            item.makeView()
+                                .frame(maxWidth: .infinity)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if item.id != items.last?.id {
+                                Divider()
+                            }
+                        }
                     }
+                    .background(HeightReporter(onChange: onContentHeight))
                 }
+                Divider()
             }
-            Divider()
+        }
+    }
+}
+
+/// 把 SwiftUI 子树的真实布局高度回报给调用方。
+///
+/// 宿主按显式尺寸撑开弹窗，`GeometryReader` 偏好值在此场景下会拿到 0，
+/// 这里改由 AppKit 视图的真实 bounds 回报。
+private struct HeightReporter: NSViewRepresentable {
+    let onChange: (CGFloat) -> Void
+
+    func makeNSView(context: Context) -> ReportingView {
+        let view = ReportingView()
+        view.onChange = onChange
+        return view
+    }
+
+    func updateNSView(_ view: ReportingView, context: Context) {
+        view.onChange = onChange
+    }
+
+    final class ReportingView: NSView {
+        var onChange: ((CGFloat) -> Void)?
+        private var reportedHeight: CGFloat?
+
+        override func layout() {
+            super.layout()
+            let height = bounds.height
+            guard height > 0 else { return }
+            if let reportedHeight, abs(reportedHeight - height) < 0.5 { return }
+            reportedHeight = height
+            let callback = onChange
+            DispatchQueue.main.async { callback?(height) }
         }
     }
 }
