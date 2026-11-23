@@ -223,7 +223,10 @@ private struct HostStatusBarHostView: View {
                 .background(HeightReporter { headerHeight = $0 })
 
             if let menuBar {
-                HostStatusBarPopupSection(menuBar: menuBar) { pluginContentHeight = $0 }
+                HostStatusBarPopupSection(
+                    menuBar: menuBar,
+                    width: manifest.configuration.popoverWidth
+                ) { pluginContentHeight = $0 }
                     .frame(height: pluginDisplayHeight)
             }
 
@@ -318,11 +321,13 @@ private struct HostStatusBarHostView: View {
 
 private struct HostStatusBarPopupSection: View {
     private let menuBar: any MenuBarProviding
+    private let width: CGFloat
     private let onContentHeight: (CGFloat) -> Void
     @StateObject private var refreshModel: MenuBarRefreshModel
 
-    init(menuBar: any MenuBarProviding, onContentHeight: @escaping (CGFloat) -> Void) {
+    init(menuBar: any MenuBarProviding, width: CGFloat, onContentHeight: @escaping (CGFloat) -> Void) {
         self.menuBar = menuBar
+        self.width = width
         self.onContentHeight = onContentHeight
         _refreshModel = StateObject(wrappedValue: MenuBarRefreshModel(provider: menuBar))
     }
@@ -343,6 +348,10 @@ private struct HostStatusBarPopupSection: View {
                             }
                         }
                     }
+                    // 纵向 ScrollView 不向内容传递可用宽度，插件项的固有宽度
+                    // 会把内容撑得比弹窗宽、再被居中裁剪。这里显式钉住宽度，
+                    // 让插件按弹窗宽度布局，横向滚动留给插件自己处理。
+                    .frame(width: width)
                     .background(HeightReporter(onChange: onContentHeight))
                 }
                 Divider()
