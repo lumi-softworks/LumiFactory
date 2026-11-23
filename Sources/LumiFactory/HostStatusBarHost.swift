@@ -376,15 +376,13 @@ private struct HostStatusBarPopupSection: View {
                     scrollFade(edge: .bottom, visible: hasContentBelow, showsChevron: true)
                 }
                 .onChange(of: isScrollable, initial: true) { _, scrollable in
-                    guard !scrollable else {
-                        // macOS 14 读不到滚动几何，内容溢出时让底部提示常显。
-                        if #unavailable(macOS 15.0) {
-                            hasContentBelow = true
-                        }
-                        return
+                    // macOS 15+ 由滚动几何驱动，这里不要重置：首次布局时
+                    // `isScrollable` 还是 false，重置会把已算好的边缘状态清掉，
+                    // 而几何值未变化时不会再回调，提示就永远不出现。
+                    if #unavailable(macOS 15.0) {
+                        hasContentAbove = false
+                        hasContentBelow = scrollable
                     }
-                    hasContentAbove = false
-                    hasContentBelow = false
                 }
                 Divider()
             }
