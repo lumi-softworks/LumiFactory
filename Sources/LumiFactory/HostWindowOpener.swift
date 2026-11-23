@@ -14,6 +14,12 @@ import AppKit
 public final class HostWindowOpener {
     public static let shared = HostWindowOpener()
 
+    /// 显式开窗请求回调：在开窗动作执行前触发。
+    ///
+    /// 菜单栏宿主用它取消启动期窗口压制——SwiftUI 在启动时自动开出的窗口
+    /// 与用户主动请求的窗口无法从 NSWindow 层区分，只能在请求入口区分。
+    public var onExplicitOpen: ((String) -> Void)?
+
     private var open: ((String) -> Void)?
     private var pendingIDs: [String] = []
 
@@ -32,6 +38,7 @@ public final class HostWindowOpener {
     /// 打开指定 id 的窗口；环境动作尚未捕获时先尝试激活已存在的原生窗口，
     /// 窗口也不存在则排队等待捕获后补发。
     public func openWindow(id: String) {
+        onExplicitOpen?(id)
         if let open {
             open(id)
             return

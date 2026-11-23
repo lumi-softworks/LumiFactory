@@ -183,6 +183,12 @@ public struct HostFeatures {
     /// 不依赖 SwiftUI 首个 `Window` 场景的自动开窗——后台启动时该行为不可靠。
     /// 纯菜单栏 App（启动只驻留状态栏、不开主窗口）设为 false。
     public var opensMainWindowOnLaunch: Bool
+    /// 启动期压制主窗自动出现（菜单栏 App）。
+    ///
+    /// SwiftUI 的 `Window` 场景在前台化启动时仍会自行开窗，禁用状态恢复
+    /// 并不抑制它。为 true 时启动后 2 秒内关闭自动出现的主窗；与
+    /// `opensMainWindowOnLaunch = false` 搭配使用，窗口只在用户显式请求时打开。
+    public var suppressesMainWindowOnLaunch: Bool
     /// 主窗口工具栏右侧的宿主设置按钮（发 `lumi.openSettings` 通知，由壳打开窗口）。
     public var showsSettingsToolbarButton: Bool
     /// Dock 图标点击 / 无窗口时重新打开主窗口（applicationShouldHandleReopen）。
@@ -222,6 +228,7 @@ public struct HostFeatures {
     public init(
         statusBar: HostStatusBarConfiguration? = nil,
         opensMainWindowOnLaunch: Bool = true,
+        suppressesMainWindowOnLaunch: Bool = false,
         showsSettingsToolbarButton: Bool = true,
         reopensMainWindowOnActivate: Bool = true,
         openExternalPath: (@MainActor (KernelCoreContainer, URL) -> Void)? = nil,
@@ -235,6 +242,7 @@ public struct HostFeatures {
     ) {
         self.statusBar = statusBar
         self.opensMainWindowOnLaunch = opensMainWindowOnLaunch
+        self.suppressesMainWindowOnLaunch = suppressesMainWindowOnLaunch
         self.showsSettingsToolbarButton = showsSettingsToolbarButton
         self.reopensMainWindowOnActivate = reopensMainWindowOnActivate
         self.openExternalPath = openExternalPath

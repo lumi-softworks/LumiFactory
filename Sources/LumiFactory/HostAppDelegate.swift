@@ -77,7 +77,7 @@ public final class HostAppDelegate: NSObject, NSApplicationDelegate {
         if manifest.features.statusBar != nil {
             statusBarController = HostStatusBarController(manifest: manifest)
         }
-        prepareSettingsWindowSuppressionIfNeeded()
+        prepareWindowSuppressionIfNeeded()
         observeOpenSettingsRequests()
         openMainWindowOnLaunchIfNeeded()
         openSettingsWindowIfRequested()
@@ -267,45 +267,85 @@ public final class HostAppDelegate: NSObject, NSApplicationDelegate {
         HostWindowOpener.shared.openWindow(id: settingsWindowID)
     }
 
-    // MARK: - Settings Window Launch Suppression
+    // MARK: - Launch Window Suppression
 
-    /// SwiftUI 的 `Window` 场景在前台化启动时会自动打开设置窗口，且会在
-    /// 启动流程中再次 order front（约 0.4 秒后）——仅 close() 会与 SwiftUI
-    /// 拉锯并残留闪烁。压制期采用「alpha=0 不可见 + close」双保险：
-    /// 同步首关 + 前 2 秒 50ms 轮询；压制期结束 close 并恢复 alpha=1。
-    private func prepareSettingsWindowSuppressionIfNeeded() {
-        guard let manifest,
-              manifest.features.suppressSettingsWindowOnLaunch else { return }
-        if let argument = manifest.features.settingsWindowOpenArgument,
-           ProcessInfo.processInfo.arguments.contains(argument) {
-            return
+    /// 启动压制中的窗口 id（含设置窗与纯菜单栏宿主的主窗）。
+    private var suppressedWindowIDs: Set<String> = []
+    private var windowSuppressionTask: Task<Void, Never>?
+
+    /// 菜单栏 App / 启动不展示主窗的宿主：SwiftUI 的 `Window` 场景在前台化
+    /// 启动时仍会自动打开窗口，禁用状态恢复并不抑制它。压制期采用
+    /// 「alpha=0 不可见 + close」双保险：同步首关 + 前 2 秒 50ms 轮询
+    /// （启动流程中 SwiftUI 会再次 order front，约 0.4 秒后；仅 close()
+    /// 会与它拉锯并残留闪烁），压制期结束 close 并恢复 alpha=1。
+    ///
+    /// 覆盖两类窗口：
+    /// - 设置窗：`suppressSettingsWindowOnLaunch`（测试参数命中时跳过）；
+    /// - 主窗：`suppressesMainWindowOnLaunch`（纯菜单栏 App）。
+    ///
+    /// 用户经 `HostWindowOpener` 显式开窗时立即取消对应压制，避免误关。
+    private func prepareWindowSuppressionIfNeeded() {
+        guard let manifest else { return }
+        let features = manifest.features
+        var ids: [String] = []
+        if features.suppressSettingsWindowOnLaunch,
+           !isOpenArgument(features.settingsWindowOpenArgument) {
+            ids.append(manifest.identity.settingsWindowID)
         }
+        if features.suppressesMainWindowOnLaunch {
+            ids.append(manifest.identity.mainWindowID)
+        }
+        guard !ids.isEmpty else { return }
 
-        let settingsWindowID = manifest.identity.settingsWindowID
-        suppressSettingsWindowAppearance(id: settingsWindowID)
+        suppressedWindowIDs = Set(ids)
+        HostWindowOpener.shared.onExplicitOpen = { [weak self] id in
+            self?.cancelWindowSuppression(id: id)
+        }
+        suppressWindowAppearance()
 
-        Task { @MainActor [weak self] in
+        windowSuppressionTask = Task { @MainActor [weak self] in
             for _ in 0 ..< 40 {
-                self?.suppressSettingsWindowAppearance(id: settingsWindowID)
+                guard let self, !self.suppressedWindowIDs.isEmpty else { return }
+                self.suppressWindowAppearance()
                 try? await Task.sleep(nanoseconds: 50_000_000)
             }
-            self?.finalizeSettingsWindowSuppression(id: settingsWindowID)
+            self?.finishWindowSuppression()
         }
     }
 
-    private func suppressSettingsWindowAppearance(id: String) {
-        for window in NSApp.windows where window.identifier?.rawValue == id {
+    private func isOpenArgument(_ argument: String?) -> Bool {
+        guard let argument else { return false }
+        return ProcessInfo.processInfo.arguments.contains(argument)
+    }
+
+    private func isSuppressed(_ window: NSWindow) -> Bool {
+        guard let id = window.identifier?.rawValue else { return false }
+        return suppressedWindowIDs.contains { id == $0 || id.hasPrefix($0 + "-") }
+    }
+
+    private func suppressWindowAppearance() {
+        guard !suppressedWindowIDs.isEmpty else { return }
+        for window in NSApp.windows where isSuppressed(window) {
             window.alphaValue = 0
             if window.isVisible { window.close() }
         }
     }
 
-    private func finalizeSettingsWindowSuppression(id: String) {
+    private func cancelWindowSuppression(id: String) {
+        guard suppressedWindowIDs.remove(id) != nil else { return }
         for window in NSApp.windows where window.identifier?.rawValue == id {
+            window.alphaValue = 1
+        }
+        logger.info("Launch suppression cancelled by explicit open: \(id, privacy: .public)")
+    }
+
+    private func finishWindowSuppression() {
+        for window in NSApp.windows where isSuppressed(window) {
             if window.isVisible { window.close() }
             window.alphaValue = 1
         }
-        logger.info("Settings window launch suppression finished")
+        suppressedWindowIDs.removeAll()
+        logger.info("Launch window suppression finished")
     }
 
     // MARK: - Main Window Activation
