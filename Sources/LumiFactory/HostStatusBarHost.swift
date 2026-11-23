@@ -225,7 +225,8 @@ private struct HostStatusBarHostView: View {
             if let menuBar {
                 HostStatusBarPopupSection(
                     menuBar: menuBar,
-                    width: manifest.configuration.popoverWidth
+                    width: manifest.configuration.popoverWidth,
+                    isScrollable: pluginContentHeight > pluginBudget + 0.5
                 ) { pluginContentHeight = $0 }
                     .frame(height: pluginDisplayHeight)
             }
@@ -322,12 +323,22 @@ private struct HostStatusBarHostView: View {
 private struct HostStatusBarPopupSection: View {
     private let menuBar: any MenuBarProviding
     private let width: CGFloat
+    private let isScrollable: Bool
     private let onContentHeight: (CGFloat) -> Void
+    @LumiUI.LumiTheme private var theme: any LumiUI.LumiUITheme
     @StateObject private var refreshModel: MenuBarRefreshModel
+    @State private var hasContentAbove = false
+    @State private var hasContentBelow = false
 
-    init(menuBar: any MenuBarProviding, width: CGFloat, onContentHeight: @escaping (CGFloat) -> Void) {
+    init(
+        menuBar: any MenuBarProviding,
+        width: CGFloat,
+        isScrollable: Bool,
+        onContentHeight: @escaping (CGFloat) -> Void
+    ) {
         self.menuBar = menuBar
         self.width = width
+        self.isScrollable = isScrollable
         self.onContentHeight = onContentHeight
         _refreshModel = StateObject(wrappedValue: MenuBarRefreshModel(provider: menuBar))
     }
@@ -354,10 +365,80 @@ private struct HostStatusBarPopupSection: View {
                     .frame(width: width)
                     .background(HeightReporter(onChange: onContentHeight))
                 }
+                .modifier(ScrollEdgeReporter { above, below in
+                    hasContentAbove = above
+                    hasContentBelow = below
+                })
+                .overlay(alignment: .top) {
+                    scrollFade(edge: .top, visible: hasContentAbove)
+                }
+                .overlay(alignment: .bottom) {
+                    scrollFade(edge: .bottom, visible: hasContentBelow, showsChevron: true)
+                }
+                .onChange(of: isScrollable, initial: true) { _, scrollable in
+                    guard !scrollable else {
+                        // macOS 14 读不到滚动几何，内容溢出时让底部提示常显。
+                        if #unavailable(macOS 15.0) {
+                            hasContentBelow = true
+                        }
+                        return
+                    }
+                    hasContentAbove = false
+                    hasContentBelow = false
+                }
                 Divider()
             }
         }
     }
+
+    /// 滚动区边缘渐隐：内容被裁切时提示还可以继续滚动。
+    @ViewBuilder
+    private func scrollFade(edge: VerticalEdge, visible: Bool, showsChevron: Bool = false) -> some View {
+        let isBottom = edge == .bottom
+        LinearGradient(
+            colors: [theme.surface.opacity(0), theme.surface],
+            startPoint: isBottom ? .top : .bottom,
+            endPoint: isBottom ? .bottom : .top
+        )
+        .frame(height: 20)
+        .overlay(alignment: .bottom) {
+            if showsChevron {
+                Image(systemName: "chevron.compact.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.bottom, 1)
+            }
+        }
+        .opacity(visible ? 1 : 0)
+        .animation(.easeInOut(duration: 0.15), value: visible)
+        .allowsHitTesting(false)
+    }
+}
+
+/// 滚动区上下边缘是否还有内容，用于驱动渐隐提示。
+private struct ScrollEdgeReporter: ViewModifier {
+    let onChange: (_ above: Bool, _ below: Bool) -> Void
+
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.onScrollGeometryChange(for: ScrollEdges.self) { geometry in
+                ScrollEdges(
+                    above: geometry.contentOffset.y > 1,
+                    below: geometry.contentOffset.y + geometry.containerSize.height
+                        < geometry.contentSize.height - 1
+                )
+            } action: { _, edges in
+                onChange(edges.above, edges.below)
+            }
+        } else {
+            content
+        }
+    }
+}
+
+private struct ScrollEdges: Equatable {
+    var above: Bool
+    var below: Bool
 }
 
 /// 把 SwiftUI 子树的真实布局高度回报给调用方。
